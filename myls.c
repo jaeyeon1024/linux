@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 
+
 #include <stdio.h>
 #include <sys/stat.h>
 #include <errno.h>
@@ -12,6 +13,8 @@
 #include <pwd.h>
 #include <grp.h>
 #include <time.h>
+#include <sys/ioctl.h>
+
 
 #define option_count 10
 
@@ -19,10 +22,10 @@
 
 typedef struct File_Info
 {
-    char * path;
-    char * name;
-    char Is_dir; // 디렉토리인지 아닌지
-    char mod[8]; // 권한
+    char path[NAME_MAX];
+    char name[NAME_MAX];
+    char* Is_dir; // 디렉토리인지 아닌지
+    char* mod[9]; // 권한
     int hard_c; //하드링크 개수 
     int b_size; // 블럭개수
     char* user_name;
@@ -33,87 +36,357 @@ typedef struct File_Info
     int clo_time;
     int min_time;
     int i_node; // inode
-    int indicator;// 지시자 
+    char* indicator;// 지시자 
 }FI;
 
+typedef struct Info_Length
+{
+    int path;
+    int name;
+    int hard_c; //하드링크 개수 
+    int b_size; // 블럭개수
+    int user_name;
+    int group_name;
+    int size; // 크기
+    int i_node; // inode
+    int indicator;
+    
+}IL;
 
-void mod_setting(FI** fi){
+typedef struct Max_Length
+{
+    int total;
+    int path;
+    int name;
+    int hard_c; //하드링크 개수 
+    int b_size; // 블럭개수
+    int user_name;
+    int group_name;
+    int size; // 크기
+    int i_node; // inode
+    
+}ML;
+
+void mod_setting(FI* fi){
     struct stat statbuf1;
 
-    stat((*fi)->path,&statbuf1);
+    stat((fi)->path,&statbuf1);
 
     if (S_ISDIR(statbuf1.st_mode)){
-                (*fi)->Is_dir = 'd';
+                (fi)->Is_dir = "d";
             }
             else{
-                (*fi)->Is_dir = '-';
+                (fi)->Is_dir = "-";
             }
 
             if ((S_IRUSR&statbuf1.st_mode) != 0){
-                (*fi)->mod[0] = 'r';
+                (fi)->mod[0] = "r";
             }
             else{
-                (*fi)->mod[0] = '-';
+                (fi)->mod[0] = "-";
             }
 
             if ((S_IWUSR&statbuf1.st_mode) != 0){
-                (*fi)->mod[1] = 'w';
+                (fi)->mod[1] = "w";
             }
             else{
-                (*fi)->mod[1] = '-';
+                (fi)->mod[1] = "-";
             }
 
             if ((S_IXUSR&statbuf1.st_mode) != 0){
-                (*fi)->mod[2] = 'x';
+                (fi)->mod[2] = "x";
             }
             else{
-                (*fi)->mod[2] = '-';
+                (fi)->mod[2] = "-";
             }
 
             if ((S_IRGRP&statbuf1.st_mode) != 0){
-                (*fi)->mod[3] = 'r';
+                (fi)->mod[3] = "r";
             }
             else{
-                (*fi)->mod[3] = '-';
+                (fi)->mod[3] = "-";
             }
 
             if ((S_IWGRP&statbuf1.st_mode) != 0){
-                (*fi)->mod[4] = 'w';
+                (fi)->mod[4] = "w";
             }
             else{
-                (*fi)->mod[4] = '-';
+                (fi)->mod[4] = "-";
             }
 
             if ((S_IXGRP&statbuf1.st_mode) != 0){
-                (*fi)->mod[5] = 'x';
+                (fi)->mod[5] = "x";
             }
             else{
-                (*fi)->mod[5] = '-';
+                (fi)->mod[5] = "-";
             }
             
              if ((S_IROTH&statbuf1.st_mode) != 0){
-                (*fi)->mod[6] = 'r';
+                (fi)->mod[6] = "r";
             }
             else{
-                (*fi)->mod[6] = '-';
+                (fi)->mod[6] = "-";
             }
 
             if ((S_IWOTH&statbuf1.st_mode) != 0){
-                (*fi)->mod[7] = 'w';
+                (fi)->mod[7] = "w";
             }
             else{
-                (*fi)->mod[7] = '-';
+                (fi)->mod[7] = "-";
             }
 
             if ((S_IXOTH&statbuf1.st_mode) != 0){
-                (*fi)->mod[8] = 'x';
+                (fi)->mod[8] = "x";
             }
             else{
-                (*fi)->mod[8] = '-';
+                (fi)->mod[8] = "-";
             }
 }
 
-void dir_print(char* filename, int options[option_count] ){
+int check_range(int start,int end, int flag){
+    if(flag){
+        if (end >= start) return 0;
+        else return  1;
+    }
+    if (end <= start) return 0;
+    else return  1;
+}
+int print_blank() {
+
+    int fd, i;
+
+    struct winsize ws;
+
+    fd = fileno(stdin);
+
+    ioctl(fd, TIOCGWINSZ, &ws); // 예외처리 해야함
+
+    return ws.ws_col;
+
+}
+void dir_print(FI *p_fi,int options[option_count], int count , ML ml, IL* p_il){
+
+    char * mon[12] = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
+    //printf("name : %s\n", p_fi[0].path);
+
+    int sums = 0;// 가로 확인
+    int tmp1 = 0; // 
+    int tmp2 = 0;
+    int width = print_blank();
+    int line = 1;
+    int wi_flag =1;
+
+    for ( line = 1; line < count; line++){
+        sums = 0;
+        wi_flag = 1;
+        for(int j = 0; j < count; j +=line ){
+            tmp1 = 0;
+            for(int k = 0; k <= line; k++){
+                tmp2 = 0;
+                if (options[2]){
+                    tmp2 += p_il[j+k].i_node;
+                }
+                if (options[3]){
+                    tmp2 += p_il[j+k].b_size;
+                }
+                if(options[4]){
+                    tmp2 += p_il[j+k].indicator;
+                }
+                tmp2 += p_il[j+k].name;
+                if(tmp1 < tmp2){
+                    tmp1 = tmp2;
+                }
+            }
+            sums += tmp1;
+            if(sums >= width){
+                wi_flag = 0;
+                continue;
+            }
+        }
+        if(wi_flag) break;
+    }
+
+    //printf("width :%d %d \n",width,line);
+
+
+    int start = 0;
+    int end = count;
+    int dx = line;
+    int flag =0;
+    if (options[6]){
+        start =count-1;
+        end = -1;
+        flag = 1;
+        dx = -1 * line;
+    }
+
+    int tmp3 =0;
+
+    for (int i = 0; i < count ; i += line){
+         if (options[1] == 0 && ((p_fi)[i].name[0] == '.')) // -a
+        {
+            continue;
+        }
+        if(options[2]){
+            printf("%*d",ml.i_node,p_fi[i].i_node);
+        }
+        if(options[3]){
+            printf("%*d",ml.b_size,p_fi[i].b_size);
+        }
+        tmp3 = 0;
+        int tmp4 = 0;
+        for (int j = 0; j < line; j++){
+            tmp4 = 0;
+            if (options[2]){
+                    tmp4 += p_il[j+i].i_node;
+            }
+            if (options[3]){
+                tmp4 += p_il[j+i].b_size;
+            }
+            if(options[4]){
+                tmp4 += p_il[j+i].indicator;
+            }
+            tmp4 += p_il[j+i].name;
+
+            if(tmp3 < tmp4){
+                tmp3 = tmp4;
+            }
+        }
+        
+
+        if(p_fi[i].indicator == "/"){
+            printf("\033[1;34m");
+            printf("%*s",tmp3+2,(p_fi)[i].name);
+            printf("\033[0m");
+            if (options[4]){
+                printf("/ ");
+            }
+        }
+        else if(p_fi[i].indicator == "*"){
+            printf("\033[1;32m");
+            printf("%*s",tmp3+2,(p_fi)[i].name);
+            
+            printf("\033[0m");
+            if (options[4]){
+                printf("*");
+            }
+        }
+        else if(p_fi[i].indicator == "="){
+            printf("\033[1;35m");
+            printf("%*s",tmp3+2,(p_fi)[i].name);
+            
+            printf("\033[0m");
+            if (options[4]){
+                printf("= ");
+            }
+        }
+        else if(p_fi[i].indicator == "@"){
+            printf("\033[0;35m");
+            printf("%*s",tmp3+2,(p_fi)[i].name);
+           
+            printf("\033[0m");
+            if (options[4]){
+                printf("@ ");
+            }
+        }
+        else{
+            printf("%*s",tmp3+2,(p_fi)[i].name);
+        }
+
+    }
+
+
+    // for(int i = start; check_range(i,end,flag); i += dx){// 이후에 2중 for문으로 한줄 씩 출력 출력 높이만큼 나누기 -ㅣ?
+    
+    //     if (options[1] == 0 && ((p_fi)[i].name[0] == '.')) // -a
+    //     {
+    //         continue;
+    //     }
+    //     if(options[2]){
+    //         printf("%*d ",ml.i_node,p_fi[i].i_node);
+    //     }
+    //     if(options[3]){
+    //         printf("%*d ",ml.b_size,p_fi[i].b_size);
+    //     }
+
+    //     if (options[0]){
+            
+    //         printf("%s",p_fi[i].Is_dir);
+    //         for(int k = 0; k < 9 ; k++)
+    //             printf("%s",p_fi[i].mod[k]);
+
+    //         printf("%*d ",ml.hard_c,p_fi[i].hard_c);
+            
+    //         printf("%*s ",ml.user_name,p_fi[i].user_name);
+    //         printf("%*s ",ml.group_name,p_fi[i].group_name);
+    //         printf("%*d ",ml.size,p_fi[i].size);
+    //         printf("%3s %2d %2d:%2d ",mon[p_fi[i].mon_time],p_fi[i].day_time,p_fi[i].clo_time,p_fi[i].min_time);
+            
+    //     }
+
+    //     if(p_fi[i].indicator == "/"){
+    //         printf("\033[1;34m");
+    //         printf("%s",(p_fi)[i].name);
+    //         printf("\033[0m");
+    //         if (options[4]){
+    //             printf("/ ");
+    //         }
+    //     }
+    //     else if(p_fi[i].indicator == "*"){
+    //         printf("\033[1;32m");
+    //         printf("%s",(p_fi)[i].name);
+            
+    //         printf("\033[0m");
+    //         if (options[4]){
+    //             printf("*");
+    //         }
+    //     }
+    //     else if(p_fi[i].indicator == "="){
+    //         printf("\033[1;35m");
+    //         printf("%s",(p_fi)[i].name);
+            
+    //         printf("\033[0m");
+    //         if (options[4]){
+    //             printf("= ");
+    //         }
+    //     }
+    //     else if(p_fi[i].indicator == "@"){
+    //         printf("\033[0;35m");
+    //         printf("%s",(p_fi)[i].name);
+           
+    //         printf("\033[0m");
+    //         if (options[4]){
+    //             printf("@ ");
+    //         }
+    //     }
+    //     else{
+    //         printf("%s ",(p_fi)[i].name);
+    //     }
+    
+
+        
+
+        
+    //     //printf("%d\n",a);
+
+    //     printf("\n");
+    // }
+}
+
+
+int number_of_digits(int n)
+{
+    if(n == 0){
+        return 0;
+    }
+    while(n != 0)
+    {
+        return 1 + number_of_digits(n/10);
+    }
+    return 0;
+}
+
+void dir_setting(char* filename, int options[option_count] ){
     DIR* dp;
 
     char file_path[NAME_MAX];
@@ -132,46 +405,152 @@ void dir_print(char* filename, int options[option_count] ){
     int     idx;
 
     FI* p_fi = 0;
+    IL* p_il = 0;
+    ML ml = {0,};
+    
 
-    p_fi = (FI*)malloc(sizeof(FI));
+    p_fi = (FI*)malloc(sizeof(FI)*100);
+    p_il = (IL*)malloc(sizeof(IL)*100);
 
+    
 
-    file_path[0] ='\0';
-    strcat(file_path,filename);
+    // file_path[0] ='\0';
+    //strcat(file_path,filename);
 
-    strcat(file_path,"/");
+    //strcat(file_path,"/");
             
-    strcat(file_path,dirp->d_name);
+    // strcat(file_path,dirp->d_name);
 
-    printf("%s",file_path);
+    //printf("path : < %s >\n",filename);
 
-    if((count = scandir(file_path, &namelist, NULL, alphasort)) == -1) {
-        fprintf(stderr, "%s Directory Scan Error: %s\n", file_path, strerror(errno));
-        return;
+    if(options[5]){
+        printf("%s:\n",filename);
     }
 
+    if((count = scandir(filename, &namelist, NULL, alphasort)) == -1) {
+        fprintf(stderr, "%s Directory Scan Error: %s\n", filename, strerror(errno));
+        return;
+    }
+    
     for (int i = 0; i < count; i++){
-        printf("%s  \n", namelist[i]->d_name);
-        if(stat(file_path,&statbuf1) < 0){
+        //printf("%s \n", namelist[i]->d_name);
+        
+        file_path[0] = '\0';
+        strcat(file_path,filename);
+
+        strcat(file_path,"/");
+            
+        strcat(file_path,namelist[i]->d_name);
+
+
+        if(lstat(file_path,&statbuf1) < 0){
             fprintf(stderr, "myls: cannot open or stat %s: No such file or directory\n",file_path);
             return;
         }
 
-        void* storeHere  = realloc(p_fi,sizeof(FI)*(i+2));
-
-        p_fi[i].path = file_path;
-        p_fi[i].name = filename;
         
-        mod_setting(&p_fi);
-        for (int j = 0; j < 9;j++ ){
-            printf("%d",p_fi[i].mod[j]);
-        }
-        printf("\n");
 
+
+        if(i > 99){
+            void* storeHere  = realloc(p_fi,sizeof(FI)*(i+120));
+        }
+
+        //p_fi[i].path = file_path;
+        strcpy(p_fi[i].path,file_path);
+        //p_fi[i].name = namelist[i]->d_name;
+        strcpy(p_fi[i].name,namelist[i]->d_name);
+
+
+        p_il[i].path = strlen(file_path);
+        p_il[i].name = strlen(namelist[i]->d_name);
+
+        mod_setting(&(p_fi[i])); // 권한 
+        
+        // for (int j = 0; j < 9;j++ ){
+        //      printf("%s",p_fi[i].mod[j]);
+        // }
+
+
+        user_info = getpwuid(statbuf1.st_uid);
+		group_info = getgrgid(statbuf1.st_gid);
+		tm_info = localtime(&statbuf1.st_mtime);
+
+
+        p_fi[i].size = statbuf1.st_size; // 사이즈 
+        p_fi[i].b_size = statbuf1.st_blocks/2; // 블럭수
+        p_fi[i].hard_c = statbuf1.st_nlink; // 하드링크수
+        p_fi[i].user_name = user_info->pw_name; // 이름
+        p_fi[i].group_name = group_info->gr_name; // 이름
+        p_fi[i].i_node = namelist[i]->d_ino; // i넘버
+
+        p_fi[i].clo_time = tm_info->tm_hour; //시간
+        p_fi[i].day_time = tm_info->tm_mday;
+        p_fi[i].min_time = tm_info->tm_min;
+        p_fi[i].mon_time = tm_info->tm_mon;
+        
+
+        p_il[i].b_size = number_of_digits(p_fi[i].b_size);
+        p_il[i].hard_c = number_of_digits(p_fi[i].hard_c);
+        p_il[i].i_node = number_of_digits(p_fi[i].i_node);
+        p_il[i].size = number_of_digits(p_fi[i].size);
+
+        p_il[i].group_name = strlen(p_fi[i].group_name);
+        p_il[i].user_name = strlen(p_fi[i].user_name);
+
+        ml.total += p_fi[i].b_size;
+
+        p_il[i].indicator = 1;
+
+        if (S_ISDIR(statbuf1.st_mode)){ // 지시자 
+            p_fi[i].indicator = "/";
+        }
+        else if(S_ISLNK(statbuf1.st_mode)){
+            p_fi[i].indicator = "@";
+        }
+        else if(S_ISSOCK(statbuf1.st_mode)){
+            p_fi[i].indicator = "=";
+        }
+        else if((statbuf1.st_mode & S_IXUSR) != 0){
+            p_fi[i].indicator = "*";
+        }
+        else if((statbuf1.st_mode & S_IXGRP) != 0){
+            p_fi[i].indicator = "*";
+        }
+        else if((statbuf1.st_mode & S_IXOTH) != 0){
+            p_fi[i].indicator = "*";
+        }
+        else{
+            p_fi[i].indicator = "";
+            p_il[i].indicator = 0;
+        }
+        
+        
+        
+        if(ml.b_size < p_il[i].b_size) ml.b_size = p_il[i].b_size;
+        if(ml.group_name < p_il[i].group_name) ml.group_name = p_il[i].group_name;
+        if(ml.hard_c <  p_il[i].hard_c) ml.hard_c = p_il[i].hard_c;
+        if(ml.i_node < p_il[i].i_node) ml.i_node = p_il[i].i_node;
+        if(ml.name < p_il[i].name) ml.name = p_il[i].name;
+        if(ml.path < p_il[i].path) ml.path = p_il[i].path;
+        if(ml.size < p_il[i].size) ml.size = p_il[i].size;
+        if(ml.user_name < p_il[i].user_name) ml.user_name = p_il[i].user_name;
+     
     }
 
+    
+    if(options[0]){
+        printf("total %d\n",ml.total);
+    }
+    dir_print(p_fi,options,count,ml,p_il);
 
-
+    if(options[5]){
+        printf("\n\n");
+        for(int i = 0; i < count; i++){
+            if(p_fi[i].Is_dir == "d" && p_fi[i].name[0] != '.'&&p_fi[i].indicator != "@"){
+                dir_setting(p_fi[i].path,options);
+            }
+        }
+    }
 
     /*
 
@@ -373,11 +752,11 @@ void check_option(int argc, char *argv[], int options[option_count] ){
     struct stat statbuf1;
 
     if (optind == argc){
-        dir_print(".",options);
+        dir_setting(".",options);
     }
     else if(argc - optind == 1){
         
-        dir_print(argv[optind],options);
+        dir_setting(argv[optind],options);
     }
     else{
         for(int k = 0; k < 2 ; k++){
@@ -392,7 +771,7 @@ void check_option(int argc, char *argv[], int options[option_count] ){
                 }
                 else{
                     printf(" \n\n%s : \n\n",argv[i]);
-                    dir_print(argv[i],options);
+                    dir_setting(argv[i],options);
                 }
             }
         }
@@ -432,6 +811,7 @@ int main(int argc, char *argv[]) {
             options[5] = 1;
             break;
             case 'r':
+            options[6] = 1;
             break;
             default:
                 fprintf(stderr, "myls : %s [-l] [-a] [디렉토리1 디렉토리2 ...]\n", argv[0]);
