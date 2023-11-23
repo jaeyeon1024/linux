@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "unistd.h": "c",
+        "features.h": "c",
+        "posix_opt.h": "c",
+        "stddef.h": "c",
+        "types.h": "c",
+        "errno.h": "c",
+        "fcntl.h": "c"
+    }
+}
