@@ -21,8 +21,8 @@ typedef struct File_Info
 {
     char * path;
     char * name;
-    int Is_dir; // 디렉토리인지 아닌지
-    int mod[8]; // 권한
+    char Is_dir; // 디렉토리인지 아닌지
+    char mod[8]; // 권한
     int hard_c; //하드링크 개수 
     int b_size; // 블럭개수
     char* user_name;
@@ -32,10 +32,86 @@ typedef struct File_Info
     int day_time;
     int clo_time;
     int min_time;
-    int i_node;
-    int indicator;
+    int i_node; // inode
+    int indicator;// 지시자 
 }FI;
 
+
+void mod_setting(FI** fi){
+    struct stat statbuf1;
+
+    stat((*fi)->path,&statbuf1);
+
+    if (S_ISDIR(statbuf1.st_mode)){
+                (*fi)->Is_dir = 'd';
+            }
+            else{
+                (*fi)->Is_dir = '-';
+            }
+
+            if ((S_IRUSR&statbuf1.st_mode) != 0){
+                (*fi)->mod[0] = 'r';
+            }
+            else{
+                (*fi)->mod[0] = '-';
+            }
+
+            if ((S_IWUSR&statbuf1.st_mode) != 0){
+                (*fi)->mod[1] = 'w';
+            }
+            else{
+                (*fi)->mod[1] = '-';
+            }
+
+            if ((S_IXUSR&statbuf1.st_mode) != 0){
+                (*fi)->mod[2] = 'x';
+            }
+            else{
+                (*fi)->mod[2] = '-';
+            }
+
+            if ((S_IRGRP&statbuf1.st_mode) != 0){
+                (*fi)->mod[3] = 'r';
+            }
+            else{
+                (*fi)->mod[3] = '-';
+            }
+
+            if ((S_IWGRP&statbuf1.st_mode) != 0){
+                (*fi)->mod[4] = 'w';
+            }
+            else{
+                (*fi)->mod[4] = '-';
+            }
+
+            if ((S_IXGRP&statbuf1.st_mode) != 0){
+                (*fi)->mod[5] = 'x';
+            }
+            else{
+                (*fi)->mod[5] = '-';
+            }
+            
+             if ((S_IROTH&statbuf1.st_mode) != 0){
+                (*fi)->mod[6] = 'r';
+            }
+            else{
+                (*fi)->mod[6] = '-';
+            }
+
+            if ((S_IWOTH&statbuf1.st_mode) != 0){
+                (*fi)->mod[7] = 'w';
+            }
+            else{
+                (*fi)->mod[7] = '-';
+            }
+
+            if ((S_IXOTH&statbuf1.st_mode) != 0){
+                (*fi)->mod[8] = 'x';
+            }
+            else{
+                (*fi)->mod[8] = '-';
+            }
+}
 
 void dir_print(char* filename, int options[option_count] ){
     DIR* dp;
@@ -43,7 +119,7 @@ void dir_print(char* filename, int options[option_count] ){
     char file_path[NAME_MAX];
     memset(file_path,0,NAME_MAX);
 
-    struct dirent *dirp;
+    struct dirent *dirp; 
     struct stat statbuf1;
 
     struct passwd *user_info;
@@ -51,7 +127,53 @@ void dir_print(char* filename, int options[option_count] ){
 	struct tm *tm_info;
     int dir_check = 0;
 
+    struct  dirent **namelist;
+    int     count;
+    int     idx;
 
+    FI* p_fi = 0;
+
+    p_fi = (FI*)malloc(sizeof(FI));
+
+
+    file_path[0] ='\0';
+    strcat(file_path,filename);
+
+    strcat(file_path,"/");
+            
+    strcat(file_path,dirp->d_name);
+
+    printf("%s",file_path);
+
+    if((count = scandir(file_path, &namelist, NULL, alphasort)) == -1) {
+        fprintf(stderr, "%s Directory Scan Error: %s\n", file_path, strerror(errno));
+        return;
+    }
+
+    for (int i = 0; i < count; i++){
+        printf("%s  \n", namelist[i]->d_name);
+        if(stat(file_path,&statbuf1) < 0){
+            fprintf(stderr, "myls: cannot open or stat %s: No such file or directory\n",file_path);
+            return;
+        }
+
+        void* storeHere  = realloc(p_fi,sizeof(FI)*(i+2));
+
+        p_fi[i].path = file_path;
+        p_fi[i].name = filename;
+        
+        mod_setting(&p_fi);
+        for (int j = 0; j < 9;j++ ){
+            printf("%d",p_fi[i].mod[j]);
+        }
+        printf("\n");
+
+    }
+
+
+
+
+    /*
 
     if((dp =opendir(filename)) == NULL ){
         fprintf(stderr, "myls: cannot stat %s: No such file or directory\n",filename);
@@ -62,11 +184,11 @@ void dir_print(char* filename, int options[option_count] ){
 
 
 
-    /*
+    
     
     이 부분에 대충readdir 할 필요 없이 바로 파일 이름 붙이고 똑같이 처리
     
-    */
+    
         file_path[0] ='\0';
         strcat(file_path,filename);
 
@@ -245,7 +367,7 @@ void dir_print(char* filename, int options[option_count] ){
         }
     }
 
-
+    */
 }
 void check_option(int argc, char *argv[], int options[option_count] ){
     struct stat statbuf1;
