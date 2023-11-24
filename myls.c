@@ -169,9 +169,6 @@ int print_blank() {
 void dir_print(FI *p_fi,int options[option_count], int count , ML ml, IL* p_il){
 
     char * mon[12] = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
-    //printf("name : %s\n", p_fi[0].path);
-    
-    
 
     if (count == 2 && options[1]==0){
         printf("\n");
@@ -193,6 +190,9 @@ void dir_print(FI *p_fi,int options[option_count], int count , ML ml, IL* p_il){
             line_max = 0;
             for(int k = 0; k <= line; k++){
                 line_tmp = 0;
+
+                
+                
                 if (options[2]){
                     line_tmp += ml.i_node +1;
                 }
@@ -200,9 +200,12 @@ void dir_print(FI *p_fi,int options[option_count], int count , ML ml, IL* p_il){
                     line_tmp += ml.b_size+1;
                 }
                 if(options[4]){
-                    line_tmp += p_il[j+k].indicator;
+                    if(j+k < count)
+                        line_tmp += p_il[j+k].indicator+2;
                 }
-                line_tmp += p_il[j+k].name +2;
+                if(j+k < count)
+                    line_tmp += p_il[j+k].name +2;
+
                 if(line_max < line_tmp){
                     line_max = line_tmp;
                 }
@@ -213,13 +216,14 @@ void dir_print(FI *p_fi,int options[option_count], int count , ML ml, IL* p_il){
                 continue;
             }
         }
+        
         if(wi_flag && line != 1)
         {
+            
             line--;
             break;
         }
     }
-
     //printf("width :%d %d \n",width,line);
 
 
@@ -231,16 +235,23 @@ void dir_print(FI *p_fi,int options[option_count], int count , ML ml, IL* p_il){
 
     int tmp3 =0;
     
+    //printf("\ntest : %s \n",p_fi[4].name);
+    
+    //printf("width : %d\n",line);
+
     if(options[0] == 0){
         for (int i = 0; i< line ; i++){
             for(int j = 0; j < count;){
-                
-                
                 tmp3 =0;
-                if(p_fi[j+i].name[0] == '.' && options[1]==0) {
+                if(p_fi[j].name[0] == '.' && options[1]==0) {
                     j+= 1;
                     continue;
                 }
+
+                //printf("\ni %d ,j : %d %s\n",i , j,p_fi[i+j].name);
+
+
+                //printf("\ntest : %s \n",p_fi[i+j].name);
                 int tmp4 = 0;
                 
                 for(int k = 0;k<line;k++){
@@ -252,12 +263,12 @@ void dir_print(FI *p_fi,int options[option_count], int count , ML ml, IL* p_il){
                 }
 
                 if(j+i < count){
-                if (options[2]){
-                    printf("%*d ",ml.i_node,p_fi[i+j].i_node);
-                }
-                if (options[3]){
-                    printf("%*d ",ml.b_size,p_fi[i+j].b_size);
-                }
+                    if (options[2]){
+                       printf("%*d ",ml.i_node,p_fi[i+j].i_node);
+                    }
+                    if (options[3]){
+                        printf("%*d ",ml.b_size,p_fi[i+j].b_size);
+                    }
                 
                     if(p_fi[i+j].indicator == "/"){
                         
@@ -316,7 +327,8 @@ void dir_print(FI *p_fi,int options[option_count], int count , ML ml, IL* p_il){
                         printf("%-*s  ",tmp3,(p_fi)[i+j].name);
                     }
                 }
-                j+= line;
+                j += line;
+                
             }
             printf("\n");
             
@@ -551,15 +563,13 @@ void dir_setting(char* filename, int options[option_count] ){
     if((count = scandir(filename, &namelist, NULL, alphasort)) == -1) {
         if(!access(filename,F_OK)){
             printf("%s\n",filename);
-            return;
         }
-        fprintf(stderr, "myls: %s Directory access Error: %s\n", filename, strerror(errno));
+        fprintf(stderr, "myls: %s Directory Scan Error: %s\n", filename, strerror(errno));
         return;
     }
     
     p_fi = (FI*)malloc(sizeof(FI)*(count+1));
     p_il = (IL*)malloc(sizeof(IL)*(count+1));
-    
     
     int i = 0;
     int dx = 1;
@@ -696,13 +706,17 @@ void dir_setting(char* filename, int options[option_count] ){
         if(ml.path < p_il[i].path) ml.path = p_il[i].path;
         if(ml.size < p_il[i].size) ml.size = p_il[i].size;
         if(ml.user_name < p_il[i].user_name) ml.user_name = p_il[i].user_name;
-     
+
+        //printf("test: %d %s\n\n",i,p_fi[i].name);
     }
     
     
-    if(options[0]){
+    if(options[0] | options[3]){
         printf("total %d\n",ml.total);
     }
+
+
+
     dir_print(p_fi,options,count,ml,p_il);
 
     if(options[5]){
