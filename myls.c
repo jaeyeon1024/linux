@@ -37,6 +37,7 @@ typedef struct File_Info
     int min_time;
     int i_node; // inode
     char* indicator;// 지시자 
+    char indicator_name[NAME_MAX+1];
 }FI;
 
 typedef struct Info_Length
@@ -164,46 +165,59 @@ int print_blank() {
     return ws.ws_col;
 
 }
+
 void dir_print(FI *p_fi,int options[option_count], int count , ML ml, IL* p_il){
 
     char * mon[12] = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
     //printf("name : %s\n", p_fi[0].path);
+    
+    
 
-    int sums = 0;// 가로 확인
-    int tmp1 = 0; // 
-    int tmp2 = 0;
-    int width = print_blank();
+    if (count == 2 && options[1]==0){
+        printf("\n");
+        return;
+    }
+
+    int width_sums = 0;// 가로 확인
+    int line_max = 0; // 
+    int line_tmp = 0;
+    int width = print_blank()- 10;
     int line = 1;
     int wi_flag =1;
 
+
     for ( line = 1; line < count; line++){
-        sums = 0;
+        width_sums = 0;
         wi_flag = 1;
         for(int j = 0; j < count; j +=line ){
-            tmp1 = 0;
+            line_max = 0;
             for(int k = 0; k <= line; k++){
-                tmp2 = 0;
+                line_tmp = 0;
                 if (options[2]){
-                    tmp2 += p_il[j+k].i_node;
+                    line_tmp += ml.i_node +1;
                 }
                 if (options[3]){
-                    tmp2 += p_il[j+k].b_size;
+                    line_tmp += ml.b_size+1;
                 }
                 if(options[4]){
-                    tmp2 += p_il[j+k].indicator;
+                    line_tmp += p_il[j+k].indicator;
                 }
-                tmp2 += p_il[j+k].name;
-                if(tmp1 < tmp2){
-                    tmp1 = tmp2;
+                line_tmp += p_il[j+k].name +2;
+                if(line_max < line_tmp){
+                    line_max = line_tmp;
                 }
             }
-            sums += tmp1;
-            if(sums >= width){
+            width_sums += line_max;
+            if(width_sums > width){
                 wi_flag = 0;
                 continue;
             }
         }
-        if(wi_flag) break;
+        if(wi_flag && line != 1)
+        {
+            line--;
+            break;
+        }
     }
 
     //printf("width :%d %d \n",width,line);
@@ -213,164 +227,271 @@ void dir_print(FI *p_fi,int options[option_count], int count , ML ml, IL* p_il){
     int end = count;
     int dx = line;
     int flag =0;
-    if (options[6]){
-        start =count-1;
-        end = -1;
-        flag = 1;
-        dx = -1 * line;
-    }
+    
 
     int tmp3 =0;
+    
+    if(options[0] == 0){
+        for (int i = 0; i< line ; i++){
+            for(int j = 0; j < count;){
+                
+                
+                tmp3 =0;
+                if(p_fi[j+i].name[0] == '.' && options[1]==0) {
+                    j+= 1;
+                    continue;
+                }
+                int tmp4 = 0;
+                
+                for(int k = 0;k<line;k++){
+                    
+                    tmp4 = 0;
+                    if(j+k >= count) continue;
+                    tmp4 += p_il[j+k].name; 
+                    if(tmp4 > tmp3) tmp3 = tmp4;
+                }
 
-    for (int i = 0; i < count ; i += line){
-         if (options[1] == 0 && ((p_fi)[i].name[0] == '.')) // -a
-        {
-            continue;
-        }
-        if(options[2]){
-            printf("%*d",ml.i_node,p_fi[i].i_node);
-        }
-        if(options[3]){
-            printf("%*d",ml.b_size,p_fi[i].b_size);
-        }
-        tmp3 = 0;
-        int tmp4 = 0;
-        for (int j = 0; j < line; j++){
-            tmp4 = 0;
-            if (options[2]){
-                    tmp4 += p_il[j+i].i_node;
+                if(j+i < count){
+                if (options[2]){
+                    printf("%*d ",ml.i_node,p_fi[i+j].i_node);
+                }
+                if (options[3]){
+                    printf("%*d ",ml.b_size,p_fi[i+j].b_size);
+                }
+                
+                    if(p_fi[i+j].indicator == "/"){
+                        
+                        if (options[4]){
+                            printf("\033[1;34m");
+                            printf("%-*s  ",tmp3,(p_fi)[i+j].indicator_name);
+                            printf("\033[0m");
+                        }
+                        else{
+                            printf("\033[1;34m");
+                            printf("%-*s  ",tmp3,(p_fi)[i+j].name);
+                            printf("\033[0m");
+                        }
+                    }
+                    else if(p_fi[i+j].indicator == "*"){
+                        if (options[4]){
+                            printf("\033[1;32m");
+                            printf("%-*s  ",tmp3,(p_fi)[i+j].indicator_name);
+                    
+                            printf("\033[0m");
+                        }
+                        else{
+                            printf("\033[1;32m");
+                            printf("%-*s  ",tmp3,(p_fi)[i+j].name);
+                            printf("\033[0m");
+                        }
+                    }
+                    else if(p_fi[i+j].indicator == "="){
+                        if (options[4]){
+                            printf("\033[1;35m");
+                            printf("%-*s  ",tmp3,(p_fi)[i+j].indicator_name);
+                    
+                            printf("\033[0m");
+                        }
+                        else{
+                            printf("\033[1;35m");
+                            printf("%-*s  ",tmp3,(p_fi)[i+j].name);
+                            printf("\033[0m");
+                        }
+                    }
+                    else if(p_fi[i+j].indicator == "@"){
+                        if (options[4]){
+                            printf("\033[0;35m");
+                            printf("%-*s  ",tmp3,(p_fi)[i+j].indicator_name);
+                    
+                            printf("\033[0m");
+                        }
+                        else{
+                            printf("\033[0;35m");
+                            printf("%-*s  ",tmp3,(p_fi)[i+j].name);
+                    
+                            printf("\033[0m");
+                        }
+                    }
+                    else{
+                        printf("%-*s  ",tmp3,(p_fi)[i+j].name);
+                    }
+                }
+                j+= line;
             }
-            if (options[3]){
-                tmp4 += p_il[j+i].b_size;
-            }
-            if(options[4]){
-                tmp4 += p_il[j+i].indicator;
-            }
-            tmp4 += p_il[j+i].name;
-
-            if(tmp3 < tmp4){
-                tmp3 = tmp4;
-            }
-        }
-        
-
-        if(p_fi[i].indicator == "/"){
-            printf("\033[1;34m");
-            printf("%*s",tmp3+2,(p_fi)[i].name);
-            printf("\033[0m");
-            if (options[4]){
-                printf("/ ");
-            }
-        }
-        else if(p_fi[i].indicator == "*"){
-            printf("\033[1;32m");
-            printf("%*s",tmp3+2,(p_fi)[i].name);
+            printf("\n");
             
-            printf("\033[0m");
-            if (options[4]){
-                printf("*");
-            }
         }
-        else if(p_fi[i].indicator == "="){
-            printf("\033[1;35m");
-            printf("%*s",tmp3+2,(p_fi)[i].name);
-            
-            printf("\033[0m");
-            if (options[4]){
-                printf("= ");
-            }
-        }
-        else if(p_fi[i].indicator == "@"){
-            printf("\033[0;35m");
-            printf("%*s",tmp3+2,(p_fi)[i].name);
-           
-            printf("\033[0m");
-            if (options[4]){
-                printf("@ ");
-            }
-        }
-        else{
-            printf("%*s",tmp3+2,(p_fi)[i].name);
-        }
-
     }
+/*
+    for(int s = 0; s < line; s++){
+        int i = 0;
+        
+        for (i; i < count ; i += line){
+            if (options[1] == 0 && ((p_fi)[i+s].name[0] == '.')) // -a
+            {
+                i = i -(line-1);
+                continue;
+            }
+            if(options[2]){
+                printf("%*d",ml.i_node,p_fi[i+s].i_node);
+            }
+            if(options[3]){
+                printf("%*d",ml.b_size,p_fi[i+s].b_size);
+            }
+            tmp3 = 0;
+            int tmp4 = 0;
+            for (int j = 0; j < line; j++){
+                tmp4 = 0;
+                if (options[2]){
+                    tmp4 += p_il[j+i].i_node;
+                }
+                if (options[3]){
+                    tmp4 += p_il[j+i].b_size;
+                }
+                if(options[4]){
+                    tmp4 += p_il[j+i].indicator;
+                }
+                tmp4 += p_il[j+i].name;
 
-
-    // for(int i = start; check_range(i,end,flag); i += dx){// 이후에 2중 for문으로 한줄 씩 출력 출력 높이만큼 나누기 -ㅣ?
-    
-    //     if (options[1] == 0 && ((p_fi)[i].name[0] == '.')) // -a
-    //     {
-    //         continue;
-    //     }
-    //     if(options[2]){
-    //         printf("%*d ",ml.i_node,p_fi[i].i_node);
-    //     }
-    //     if(options[3]){
-    //         printf("%*d ",ml.b_size,p_fi[i].b_size);
-    //     }
-
-    //     if (options[0]){
+                if(tmp3 < tmp4){
+                    tmp3 = tmp4;
+                }
+            }
             
-    //         printf("%s",p_fi[i].Is_dir);
-    //         for(int k = 0; k < 9 ; k++)
-    //             printf("%s",p_fi[i].mod[k]);
 
-    //         printf("%*d ",ml.hard_c,p_fi[i].hard_c);
+            if(p_fi[i+s].indicator == "/"){
+                printf("\033[1;34m");
+                printf("%*s",tmp3,(p_fi)[i+s].name);
+                printf("\033[0m");
+                if (options[4]){
+                    printf("/ ");
+                }
+            }
+            else if(p_fi[i+s].indicator == "*"){
+                printf("\033[1;32m");
+                printf("%*s",tmp3,(p_fi)[i+s].name);
+                
+                printf("\033[0m");
+                if (options[4]){
+                    printf("*");
+                }
+            }
+            else if(p_fi[i+s].indicator == "="){
+                printf("\033[1;35m");
+                printf("%*s",tmp3,(p_fi)[i+s].name);
+                
+                printf("\033[0m");
+                if (options[4]){
+                    printf("= ");
+                }
+            }
+            else if(p_fi[i+s].indicator == "@"){
+                printf("\033[0;35m");
+                printf("%*s",tmp3,(p_fi)[i+s].name);
             
-    //         printf("%*s ",ml.user_name,p_fi[i].user_name);
-    //         printf("%*s ",ml.group_name,p_fi[i].group_name);
-    //         printf("%*d ",ml.size,p_fi[i].size);
-    //         printf("%3s %2d %2d:%2d ",mon[p_fi[i].mon_time],p_fi[i].day_time,p_fi[i].clo_time,p_fi[i].min_time);
-            
-    //     }
+                printf("\033[0m");
+                if (options[4]){
+                    printf("@ ");
+                }
+            }
+            else{
+                printf("%*s",tmp3,(p_fi)[i+s].name);
+            }
+            printf(" ");
 
-    //     if(p_fi[i].indicator == "/"){
-    //         printf("\033[1;34m");
-    //         printf("%s",(p_fi)[i].name);
-    //         printf("\033[0m");
-    //         if (options[4]){
-    //             printf("/ ");
-    //         }
-    //     }
-    //     else if(p_fi[i].indicator == "*"){
-    //         printf("\033[1;32m");
-    //         printf("%s",(p_fi)[i].name);
-            
-    //         printf("\033[0m");
-    //         if (options[4]){
-    //             printf("*");
-    //         }
-    //     }
-    //     else if(p_fi[i].indicator == "="){
-    //         printf("\033[1;35m");
-    //         printf("%s",(p_fi)[i].name);
-            
-    //         printf("\033[0m");
-    //         if (options[4]){
-    //             printf("= ");
-    //         }
-    //     }
-    //     else if(p_fi[i].indicator == "@"){
-    //         printf("\033[0;35m");
-    //         printf("%s",(p_fi)[i].name);
-           
-    //         printf("\033[0m");
-    //         if (options[4]){
-    //             printf("@ ");
-    //         }
-    //     }
-    //     else{
-    //         printf("%s ",(p_fi)[i].name);
-    //     }
-    
+        }
+    }
+*/
+    else{
+        for(int i = 0; i<count; i++){// 이후에 2중 for문으로 한줄 씩 출력 출력 높이만큼 나누기 -ㅣ?
+        
+            if (options[1] == 0 && ((p_fi)[i].name[0] == '.')) // -a
+            {
+                continue;
+            }
+            if(options[2]){
+                printf("%*d ",ml.i_node,p_fi[i].i_node);
+            }
+            if(options[3]){
+                printf("%*d ",ml.b_size,p_fi[i].b_size);
+            }
 
+            if (options[0]){
+                
+                printf("%s",p_fi[i].Is_dir);
+                for(int k = 0; k < 9 ; k++)
+                    printf("%s",p_fi[i].mod[k]);
+
+                printf("% *d ",ml.hard_c,p_fi[i].hard_c);
+                
+                printf("%*s ",ml.user_name,p_fi[i].user_name);
+                printf("%*s ",ml.group_name,p_fi[i].group_name);
+                printf("%*d ",ml.size,p_fi[i].size);
+                printf("%3s %2d %2d:%2d ",mon[p_fi[i].mon_time],p_fi[i].day_time,p_fi[i].clo_time,p_fi[i].min_time);
+            }
+
+            if(p_fi[i].indicator == "/"){
+                        
+                if (options[4]){
+                    printf("\033[1;34m");
+                    printf("%-*s  ",ml.name+1,(p_fi)[i].indicator_name);
+                    printf("\033[0m");
+                }
+                else{
+                    printf("\033[1;34m");
+                    printf("%-*s  ",ml.name,(p_fi)[i].name);
+                    printf("\033[0m");
+                    }
+                }
+            else if(p_fi[i].indicator == "*"){
+                if (options[4]){
+                    printf("\033[1;32m");
+                    printf("%-*s  ",ml.name+1,(p_fi)[i].indicator_name);
+                    printf("\033[0m");
+                }
+                else{
+                    printf("\033[1;32m");
+                    printf("%-*s  ",ml.name,(p_fi)[i].name);
+                    printf("\033[0m");
+                }
+            }
+            else if(p_fi[i].indicator == "="){
+                if (options[4]){
+                    printf("\033[1;35m");
+                    printf("%-*s  ",ml.name+1,(p_fi)[i].indicator_name);
+                    printf("\033[0m");
+                }
+                else{
+                    printf("\033[1;35m");
+                    printf("%-*s  ",ml.name,(p_fi)[i].name);
+                    printf("\033[0m");
+                }
+            }
+            else if(p_fi[i].indicator == "@"){
+                if (options[4]){
+                    printf("\033[0;35m");
+                    printf("%-*s  ",ml.name+1,(p_fi)[i].indicator_name);
+                    printf("\033[0m");
+                }
+                else{
+                    printf("\033[0;35m");
+                    printf("%-*s  ",ml.name,(p_fi)[i].name);
+                    printf("\033[0m");
+                }
+            }
+            else{
+                printf("%-*s  ",ml.name,(p_fi)[i].name);
+            }
         
 
-        
-    //     //printf("%d\n",a);
+            
 
-    //     printf("\n");
-    // }
+            
+            //printf("%d\n",a);
+
+            printf("\n");
+        }
+    }
 }
 
 
@@ -387,8 +508,9 @@ int number_of_digits(int n)
 }
 
 void dir_setting(char* filename, int options[option_count] ){
-    DIR* dp;
 
+    DIR* dp;
+    
     char file_path[NAME_MAX];
     memset(file_path,0,NAME_MAX);
 
@@ -409,8 +531,7 @@ void dir_setting(char* filename, int options[option_count] ){
     ML ml = {0,};
     
 
-    p_fi = (FI*)malloc(sizeof(FI)*100);
-    p_il = (IL*)malloc(sizeof(IL)*100);
+   
 
     
 
@@ -428,20 +549,43 @@ void dir_setting(char* filename, int options[option_count] ){
     }
 
     if((count = scandir(filename, &namelist, NULL, alphasort)) == -1) {
-        fprintf(stderr, "%s Directory Scan Error: %s\n", filename, strerror(errno));
+        if(!access(filename,F_OK)){
+            printf("%s\n",filename);
+            return;
+        }
+        fprintf(stderr, "myls: %s Directory access Error: %s\n", filename, strerror(errno));
         return;
     }
     
-    for (int i = 0; i < count; i++){
+    p_fi = (FI*)malloc(sizeof(FI)*(count+1));
+    p_il = (IL*)malloc(sizeof(IL)*(count+1));
+    
+    
+    int i = 0;
+    int dx = 1;
+    int start = 0;
+    int end = count;
+    
+    if(options[6]){
+        dx = -1;
+        start = count-1;
+        end = -1;
+    }
+
+    for (int i = start; check_range(i,end,options[6]); i += dx){
         //printf("%s \n", namelist[i]->d_name);
-        
+        //printf("%d \n",i);
         file_path[0] = '\0';
         strcat(file_path,filename);
 
         strcat(file_path,"/");
-            
-        strcat(file_path,namelist[i]->d_name);
-
+        
+        if(options[6]){
+            strcat(file_path,namelist[count - i-1]->d_name);    
+        }
+        else{
+            strcat(file_path,namelist[i]->d_name);
+        }
 
         if(lstat(file_path,&statbuf1) < 0){
             fprintf(stderr, "myls: cannot open or stat %s: No such file or directory\n",file_path);
@@ -450,27 +594,29 @@ void dir_setting(char* filename, int options[option_count] ){
 
         
 
-
-        if(i > 99){
-            void* storeHere  = realloc(p_fi,sizeof(FI)*(i+120));
-        }
-
         //p_fi[i].path = file_path;
         strcpy(p_fi[i].path,file_path);
         //p_fi[i].name = namelist[i]->d_name;
-        strcpy(p_fi[i].name,namelist[i]->d_name);
 
+        if(options[6]){
+            strcpy(p_fi[i].name,namelist[count - i -1]->d_name);    
+        }
+        else
+        {
+            strcpy(p_fi[i].name,namelist[i]->d_name);
+        }
+
+        //printf("paths : %s\n",p_fi[i].path);
 
         p_il[i].path = strlen(file_path);
-        p_il[i].name = strlen(namelist[i]->d_name);
+
+        if(options[6])
+            p_il[i].name = strlen(namelist[count -i -1]->d_name);
+        else
+            p_il[i].name = strlen(namelist[i]->d_name);
 
         mod_setting(&(p_fi[i])); // 권한 
         
-        // for (int j = 0; j < 9;j++ ){
-        //      printf("%s",p_fi[i].mod[j]);
-        // }
-
-
         user_info = getpwuid(statbuf1.st_uid);
 		group_info = getgrgid(statbuf1.st_gid);
 		tm_info = localtime(&statbuf1.st_mtime);
@@ -481,7 +627,10 @@ void dir_setting(char* filename, int options[option_count] ){
         p_fi[i].hard_c = statbuf1.st_nlink; // 하드링크수
         p_fi[i].user_name = user_info->pw_name; // 이름
         p_fi[i].group_name = group_info->gr_name; // 이름
-        p_fi[i].i_node = namelist[i]->d_ino; // i넘버
+        
+        if (options[6]) p_fi[i].i_node = namelist[count -i -1]->d_ino; // i넘버
+        else p_fi[i].i_node = namelist[i]->d_ino; // i넘버
+        
 
         p_fi[i].clo_time = tm_info->tm_hour; //시간
         p_fi[i].day_time = tm_info->tm_mday;
@@ -497,27 +646,40 @@ void dir_setting(char* filename, int options[option_count] ){
         p_il[i].group_name = strlen(p_fi[i].group_name);
         p_il[i].user_name = strlen(p_fi[i].user_name);
 
-        ml.total += p_fi[i].b_size;
+        if(p_fi[i].name[0] != '.'| options[1])
+            ml.total += p_fi[i].b_size;
 
         p_il[i].indicator = 1;
 
         if (S_ISDIR(statbuf1.st_mode)){ // 지시자 
             p_fi[i].indicator = "/";
+            strcpy(p_fi[i].indicator_name,p_fi[i].name);
+            strcat(p_fi[i].indicator_name,"/");
         }
         else if(S_ISLNK(statbuf1.st_mode)){
             p_fi[i].indicator = "@";
+            strcpy(p_fi[i].indicator_name,p_fi[i].name);
+            strcat(p_fi[i].indicator_name,"@");
         }
         else if(S_ISSOCK(statbuf1.st_mode)){
             p_fi[i].indicator = "=";
+            strcpy(p_fi[i].indicator_name,p_fi[i].name);
+            strcat(p_fi[i].indicator_name,"=");
         }
         else if((statbuf1.st_mode & S_IXUSR) != 0){
             p_fi[i].indicator = "*";
+            strcpy(p_fi[i].indicator_name,p_fi[i].name);
+            strcat(p_fi[i].indicator_name,"*");
         }
         else if((statbuf1.st_mode & S_IXGRP) != 0){
             p_fi[i].indicator = "*";
+            strcpy(p_fi[i].indicator_name,p_fi[i].name);
+            strcat(p_fi[i].indicator_name,"*");
         }
         else if((statbuf1.st_mode & S_IXOTH) != 0){
             p_fi[i].indicator = "*";
+            strcpy(p_fi[i].indicator_name,p_fi[i].name);
+            strcat(p_fi[i].indicator_name,"*");
         }
         else{
             p_fi[i].indicator = "";
@@ -536,7 +698,7 @@ void dir_setting(char* filename, int options[option_count] ){
         if(ml.user_name < p_il[i].user_name) ml.user_name = p_il[i].user_name;
      
     }
-
+    
     
     if(options[0]){
         printf("total %d\n",ml.total);
@@ -547,6 +709,8 @@ void dir_setting(char* filename, int options[option_count] ){
         printf("\n\n");
         for(int i = 0; i < count; i++){
             if(p_fi[i].Is_dir == "d" && p_fi[i].name[0] != '.'&&p_fi[i].indicator != "@"){
+                
+                //printf("path : %s\n",p_fi[i].path);
                 dir_setting(p_fi[i].path,options);
             }
         }
@@ -770,7 +934,7 @@ void check_option(int argc, char *argv[], int options[option_count] ){
                     continue;
                 }
                 else{
-                    printf(" \n\n%s : \n\n",argv[i]);
+                    printf("\n%s : \n",argv[i]);
                     dir_setting(argv[i],options);
                 }
             }
@@ -780,8 +944,8 @@ void check_option(int argc, char *argv[], int options[option_count] ){
 
 //int argc, char *argv[]
 int main(int argc, char *argv[]) {
-    // int argc = 4;
-    // char* argv[4] = {"myls","-R","-l",".."};
+    // int argc = 2;
+    //  char* argv[4] = {"myls","-R"};
 
     
     int opt;
